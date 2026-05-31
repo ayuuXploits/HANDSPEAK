@@ -191,12 +191,13 @@ curl -L https://raw.githubusercontent.com/ayuuXploits/handspeak/main/handspeak.h
 ```
 handspeak/
 ├── docs/
-│   ├── handspeak_main.png
-│   ├── handspeak1.png
-│   └── handspeak2.png
+│   └── hand-speak.png
+├── .gitignore
+├── LICENSE
 ├── README.md                 # This file
-├── handspeak.html            # Full application — single file
-└── handspeak_lite.html       # Lite version (optional)
+├── hand-speak.html            # Full application — single file
+├── hand-speak-lite.html       # Lite version 
+└── index.html
 ```
 
 ---

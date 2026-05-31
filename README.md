@@ -18,7 +18,7 @@
 
 <br/>
 
-[**Live Demo**](#) &nbsp;·&nbsp; [**Report Bug**](https://github.com/ayuuXploits/handspeak/issues) &nbsp;·&nbsp; [**Request Feature**](https://github.com/ayuuXploits/handspeak/issues)
+[**Live Demo**](#) &nbsp;·&nbsp; [**Report Bug**](https://github.com/ayuuXploits/HANDSPEAK/issues) &nbsp;·&nbsp; [**Request Feature**](https://github.com/ayuuXploits/handspeak/issues)
 
 <br/>
 

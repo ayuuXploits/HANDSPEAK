@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HANDSPEAK Lite — ASL Interpreter</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0a;--accent:#e8ff47;--accent2:#ff6b35;--accent3:#ff47c8;--text:#f0f0f0;--muted:rgba(240,240,240,0.35);--border:rgba(255,255,255,0.08);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;height:100vh;width:100vw;overflow:hidden;display:flex;flex-direction:column;}
+
+/* camera fills screen */
+#cam{position:relative;flex:1;overflow:hidden;background:#000;}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
+canvas{position:absolute;inset:0;width:100%;height:100%;}
+
+/* big sign overlay */
+#sign-overlay{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;
+}
+#big-sign{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:min(40vw,280px);
+  line-height:1;
+  color:var(--accent);
+  text-shadow:0 0 80px rgba(232,255,71,0.3);
+  opacity:0;transition:opacity 0.1s;
+  letter-spacing:0.02em;
+}
+#big-sign.show{opacity:1;}
+
+/* hold ring */
+#hold-pos{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;display:none;}
+#hold-pos svg{transform:rotate(-90deg);}
+#hold-arc{fill:none;stroke:var(--accent);stroke-width:4;stroke-dasharray:251;stroke-dashoffset:251;transition:stroke-dashoffset 0.05s;stroke-linecap:round;}
+
+/* top bar */
+#topbar{
+  position:absolute;top:0;left:0;right:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;
+  background:linear-gradient(to bottom,rgba(0,0,0,0.6) 0%,transparent 100%);
+  pointer-events:none;
+}
+#title-chip{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:0.2em;color:#fff;}
+#hands-row{display:flex;gap:7px;}
+.hc{display:flex;align-items:center;gap:5px;background:rgba(0,0,0,0.5);border:1px solid var(--border);border-radius:5px;padding:4px 9px;font-size:8px;letter-spacing:0.2em;color:var(--muted);transition:all 0.3s;}
+.hc.on-r{border-color:rgba(232,255,71,0.3);color:var(--accent);}
+.hc.on-l{border-color:rgba(255,71,200,0.3);color:var(--accent3);}
+.hd{width:5px;height:5px;border-radius:50%;background:#333;transition:all 0.3s;}
+.hd.r{background:var(--accent);box-shadow:0 0 6px var(--accent);animation:p 1.4s infinite;}
+.hd.l{background:var(--accent3);box-shadow:0 0 6px var(--accent3);animation:p 1.4s infinite;}
+@keyframes p{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* bottom output bar */
+#output-bar{
+  flex-shrink:0;
+  background:rgba(10,10,10,0.95);
+  border-top:1px solid var(--border);
+  padding:12px 16px;
+  display:flex;align-items:center;gap:10px;
+  min-height:62px;
+}
+#out-text{
+  flex:1;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:28px;letter-spacing:0.05em;
+  color:var(--accent);
+  word-break:break-all;
+  line-height:1.1;
+}
+.cursor{display:inline-block;width:3px;height:26px;background:var(--accent);margin-left:2px;vertical-align:bottom;animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.out-btns{display:flex;gap:6px;flex-shrink:0;}
+.ob{padding:7px 10px;border-radius:6px;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.12em;cursor:pointer;border:1px solid;text-transform:uppercase;transition:all 0.2s;}
+#ob-sp{background:rgba(232,255,71,0.07);border-color:rgba(232,255,71,0.2);color:var(--accent);}
+#ob-bs{background:rgba(255,255,255,0.03);border-color:var(--border);color:var(--muted);}
+#ob-cl{background:rgba(255,107,53,0.07);border-color:rgba(255,107,53,0.2);color:var(--accent2);}
+
+/* confidence strip */
+#conf-strip{
+  position:absolute;bottom:62px;left:0;right:0;height:2px;
+  background:rgba(255,255,255,0.06);
+}
+#conf-fill{height:100%;background:var(--accent);width:0%;transition:width 0.15s;}
+
+/* loading */
+#loading{position:absolute;inset:0;background:var(--bg);z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;transition:opacity 0.5s;}
+.lt{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:0.2em;color:var(--accent);}
+.ls{font-size:8px;letter-spacing:0.3em;color:var(--muted);text-transform:uppercase;}
+.lb{width:140px;height:2px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;}
+.lf{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width 0.3s;}
+#lm{font-size:7px;letter-spacing:0.2em;color:var(--muted);}
+#cam-err{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);text-align:center;padding:40px;}
+.et{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.1em;}
+.em{font-size:9px;color:var(--muted);line-height:1.8;max-width:280px;}
+#er{padding:7px 18px;border:1px solid rgba(232,255,71,0.25);border-radius:5px;background:rgba(232,255,71,0.06);color:var(--accent);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.15em;cursor:pointer;text-transform:uppercase;margin-top:4px;}
+
+/* toast */
+#toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(50px);background:rgba(10,10,10,0.92);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:8px;letter-spacing:0.2em;color:var(--accent);z-index:999;opacity:0;pointer-events:none;transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1),opacity 0.25s;}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+</style>
+</head>
+<body>
+<div id="cam">
+  <div id="loading">
+    <div class="lt">HANDSPEAK</div>
+    <div class="ls">Lite</div>
+    <div class="lb"><div class="lf" id="lf"></div></div>
+    <div id="lm">LOADING...</div>
+  </div>
+  <div id="cam-err">
+    <div style="font-size:34px">📷</div>
+    <div class="et">CAMERA REQUIRED</div>
+    <div class="em">Allow camera access in your browser settings and reload.</div>
+    <button id="er" onclick="location.reload()">↺ RETRY</button>
+  </div>
+  <video id="webcam" autoplay playsinline></video>
+  <canvas id="oc"></canvas>
+
+  <div id="topbar">
+    <div id="title-chip">HANDSPEAK <span style="font-size:11px;color:var(--muted);letter-spacing:0.15em;">LITE</span></div>
+    <div id="hands-row">
+      <div class="hc" id="hc-r"><div class="hd" id="hd-r"></div>RIGHT</div>
+      <div class="hc" id="hc-l"><div class="hd" id="hd-l"></div>LEFT</div>
+    </div>
+  </div>
+
+  <div id="sign-overlay"><div id="big-sign"></div></div>
+  <div id="hold-pos">
+    <svg width="90" height="90" viewBox="0 0 90 90">
+      <circle cx="45" cy="45" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="4"/>
+      <circle id="hold-arc" cx="45" cy="45" r="40"/>
+    </svg>
+  </div>
+  <div id="conf-strip"><div id="conf-fill"></div></div>
+</div>
+
+<div id="output-bar">
+  <div id="out-text"><span id="out-chars"></span><span class="cursor"></span></div>
+  <div class="out-btns">
+    <button class="ob" id="ob-sp" onclick="addSpace()">␣</button>
+    <button class="ob" id="ob-bs" onclick="doBs()">⌫</button>
+    <button class="ob" id="ob-cl" onclick="doClear()">✕</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script>
+const video   = document.getElementById("webcam");
+const canvas  = document.getElementById("oc");
+const ctx     = canvas.getContext("2d");
+const bigSign = document.getElementById("big-sign");
+const confFill= document.getElementById("conf-fill");
+const outChars= document.getElementById("out-chars");
+const holdPos = document.getElementById("hold-pos");
+const holdArc = document.getElementById("hold-arc");
+const lf      = document.getElementById("lf");
+const lm      = document.getElementById("lm");
+const loading = document.getElementById("loading");
+
+let sentence="", lastSign=null, holdFrames=0, committed=false, smoothConf=0;
+const HOLD=22, CIRC=2*Math.PI*40;
+
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0));
+const fUp=(lm,t,p)=>lm[t].y<lm[p].y;
+const tOut=(lm)=>dist(lm[4],lm[5])>dist(lm[3],lm[5])*1.1;
+const fCurl=(lm,t,p,m)=>1-Math.min(1,dist(lm[t],lm[m])/(dist(lm[p],lm[m])*1.8+0.001));
+const allCurled=(lm)=>!fUp(lm,8,6)&&!fUp(lm,12,10)&&!fUp(lm,16,14)&&!fUp(lm,20,18);
+const palmFace=(lm)=>{const ax=lm[5].x-lm[0].x,ay=lm[5].y-lm[0].y,bx=lm[17].x-lm[0].x,by=lm[17].y-lm[0].y;return ax*by-ay*bx;};
+
+function getS(lm){
+  const pw=dist(lm[5],lm[17]);
+  return{
+    thumb:tOut(lm),index:fUp(lm,8,6),middle:fUp(lm,12,10),ring:fUp(lm,16,14),pinky:fUp(lm,20,18),
+    iC:fCurl(lm,8,6,5),mC:fCurl(lm,12,10,9),tC:fCurl(lm,4,2,1),
+    pd8:dist(lm[4],lm[8]),pd12:dist(lm[4],lm[12]),pd16:dist(lm[4],lm[16]),pd20:dist(lm[4],lm[20]),
+    pw
+  };
+}
+
+function classify1(lm){
+  const s=getS(lm);const fist=allCurled(lm);const pf=palmFace(lm);
+  if(s.thumb&&s.index&&!s.middle&&!s.ring&&s.pinky)return{sign:"ILY❤",c:.92};
+  if(s.thumb&&!s.index&&!s.middle&&!s.ring&&s.pinky&&s.tC<0.4)return{sign:"Y",c:.88};
+  if(s.thumb&&s.index&&!s.middle&&!s.ring&&!s.pinky&&tOut(lm))return{sign:"L",c:.87};
+  if(!s.thumb&&!s.index&&!s.middle&&!s.ring&&s.pinky)return{sign:"I",c:.88};
+  if(s.index&&!s.middle&&!s.ring&&!s.pinky&&!s.thumb){
+    if(s.pd12<s.pw*.55&&s.pd16<s.pw*.55)return{sign:"D",c:.82};
+    return{sign:"G",c:.75};
+  }
+  if(s.index&&s.middle&&!s.ring&&!s.pinky&&s.thumb)return{sign:"K",c:.78};
+  if(s.index&&s.middle&&!s.ring&&!s.pinky&&!s.thumb){
+    if(dist(lm[8],lm[12])>dist(lm[5],lm[9])*.65)return{sign:"V",c:.86};
+    if(dist(lm[8],lm[12])<s.pw*.4)return{sign:"U",c:.84};
+    return{sign:"R",c:.72};
+  }
+  if(s.index&&s.middle&&s.ring&&!s.pinky&&!s.thumb)return{sign:"W",c:.85};
+  if(s.index&&s.middle&&s.ring&&s.pinky){
+    if(s.thumb&&pf>0)return{sign:"HELLO",c:.84};
+    if(!s.thumb)return{sign:"B",c:.83};
+    return{sign:"HELLO",c:.80};
+  }
+  if(!s.index&&s.middle&&s.ring&&s.pinky&&s.pd8<s.pw*.35)return{sign:"F",c:.82};
+  if(!s.index&&!s.middle&&!s.ring&&!s.pinky&&!s.thumb){
+    if(s.pd8<s.pw*.5&&s.iC>0.4&&s.mC>0.4)return{sign:"O",c:.80};
+  }
+  if(s.iC>0.3&&s.iC<0.75&&s.mC>0.3&&s.mC<0.75&&s.pd8>s.pw*.4)return{sign:"C",c:.75};
+  if(fist){
+    const tb=lm[4].x>Math.min(lm[5].x,lm[9].x)&&lm[4].x<Math.max(lm[5].x,lm[9].x);
+    if(tb&&s.tC<0.5)return{sign:"T",c:.80};
+    if(s.thumb&&!tOut(lm)&&lm[4].y>lm[6].y)return{sign:"S",c:.78};
+    if(tOut(lm))return{sign:"A",c:.82};
+    if(lm[8].y>lm[4].y&&lm[12].y>lm[4].y&&lm[16].y>lm[4].y)return{sign:"M",c:.72};
+    return{sign:"E",c:.68};
+  }
+  if(s.iC>0.35&&s.iC<0.7&&!s.middle&&!s.ring&&!s.pinky&&!s.thumb)return{sign:"X",c:.70};
+  return null;
+}
+
+function classify2(d,s){
+  const ds=getS(d),ss=getS(s);
+  const df=allCurled(d),sf=allCurled(s);
+  if(ds.index&&ds.middle&&ds.ring&&ds.pinky&&ss.index&&ss.middle&&ss.ring&&ss.pinky)return{sign:"PLEASE",c:.80};
+  if(ds.index&&ds.middle&&ds.ring&&ds.pinky&&sf)return{sign:"THANKS",c:.78};
+  if(ds.pd8<ds.pw*.4&&ss.pd8<ss.pw*.4&&!ds.middle&&!ds.ring&&!ds.pinky&&!ss.middle&&!ss.ring&&!ss.pinky)return{sign:"MORE",c:.82};
+  if(df&&ss.index&&ss.middle&&ss.ring&&ss.pinky)return{sign:"HELP",c:.80};
+  if(df&&!sf&&ss.index&&ss.middle&&ss.ring&&ss.pinky)return{sign:"YES",c:.74};
+  if(ds.index&&ds.middle&&!ds.ring&&!ds.pinky&&ss.index&&ss.middle&&ss.ring&&ss.pinky)return{sign:"NO",c:.76};
+  if(ds.index&&!ds.middle&&!ds.ring&&!ds.pinky&&ss.index&&!ss.middle&&!ss.ring&&!ss.pinky)return{sign:"FRIEND",c:.78};
+  if(df&&!ss.index&&!ss.middle&&!ss.ring&&!ss.pinky)return{sign:"SORRY",c:.72};
+  if(ds.thumb&&ds.index&&ds.middle&&ds.ring&&ds.pinky&&ss.thumb&&ss.index&&ss.middle&&ss.ring&&ss.pinky&&palmFace(d)<0&&palmFace(s)<0)return{sign:"WHAT?",c:.75};
+  if(ds.thumb&&!ds.index&&!ds.middle&&!ds.ring&&ds.pinky&&ss.index&&ss.middle&&ss.ring&&ss.pinky)return{sign:"WHY?",c:.76};
+  return classify1(d);
+}
+
+const CONN=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
+function drawSkel(lm,w,h,col){
+  ctx.save();
+  for(const[a,b]of CONN){ctx.beginPath();ctx.moveTo(lm[a].x*w,lm[a].y*h);ctx.lineTo(lm[b].x*w,lm[b].y*h);ctx.strokeStyle=col+"44";ctx.lineWidth=1.8;ctx.stroke();}
+  for(let i=0;i<lm.length;i++){ctx.beginPath();ctx.arc(lm[i].x*w,lm[i].y*h,i===0?4:2.5,0,Math.PI*2);ctx.fillStyle=col;ctx.globalAlpha=0.7;ctx.fill();}
+  ctx.globalAlpha=1;ctx.restore();
+}
+
+function addChar(c){sentence+=c;outChars.textContent=sentence;}
+function addSpace(){addChar(" ");toast("SPACE");}
+function doBs(){if(sentence.length){sentence=sentence.slice(0,-1);outChars.textContent=sentence;}}
+function doClear(){sentence="";outChars.textContent="";toast("CLEARED");}
+
+function updateHold(sign){
+  if(sign!==lastSign){lastSign=sign;holdFrames=0;committed=false;holdArc.style.strokeDashoffset=CIRC;holdPos.style.display=sign?"block":"none";}
+  if(!sign){holdPos.style.display="none";return;}
+  holdFrames++;
+  const p=Math.min(holdFrames/HOLD,1);
+  holdArc.style.strokeDashoffset=CIRC*(1-p);
+  if(p>=1&&!committed){
+    committed=true;
+    const toAdd=(sign.length>2||sign.includes(" "))?sign+" ":sign;
+    addChar(toAdd);
+    bigSign.style.color="var(--accent2)";
+    setTimeout(()=>{bigSign.style.color="var(--accent)";},160);
+    toast(`"${sign}" added`);
+    holdFrames=0;committed=false;
+  }
+}
+
+function onResults(res){
+  const w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle="rgba(0,0,0,0.08)";ctx.fillRect(0,0,w,h);
+  let rLm=null,lLm=null;
+  if(res.multiHandLandmarks&&res.multiHandedness){
+    res.multiHandLandmarks.forEach((raw,i)=>{
+      const isR=res.multiHandedness[i].label==="Left";// mirrored
+      const lm=raw.map(p=>({x:1-p.x,y:p.y,z:p.z||0}));
+      if(isR)rLm=lm;else lLm=lm;
+      drawSkel(lm,w,h,isR?"#e8ff47":"#ff47c8");
+    });
+  }
+  const rOn=!!rLm,lOn=!!lLm;
+  document.getElementById("hd-r").className="hd"+(rOn?" r":"");
+  document.getElementById("hd-l").className="hd"+(lOn?" l":"");
+  document.getElementById("hc-r").className="hc"+(rOn?" on-r":"");
+  document.getElementById("hc-l").className="hc"+(lOn?" on-l":"");
+
+  let result=null;
+  if(rLm&&lLm)result=classify2(rLm,lLm);
+  else if(rLm)result=classify1(rLm);
+  else if(lLm)result=classify1(lLm);
+
+  smoothConf+=(((result?result.c:0))-smoothConf)*0.16;
+  confFill.style.width=(smoothConf*100)+"%";
+
+  if(result){bigSign.textContent=result.sign;bigSign.classList.add("show");}
+  else{bigSign.classList.remove("show");}
+  updateHold(result?result.sign:null);
+}
+
+function resize(){
+  const p=document.getElementById("cam");
+  canvas.width=p.clientWidth;canvas.height=p.clientHeight;
+}
+window.addEventListener("resize",resize);
+
+let toastT;
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.classList.add("show");
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1500);
+}
+
+(async()=>{
+  function sl(p,m){lf.style.width=p+"%";lm.textContent=m;}
+  sl(15,"REQUESTING CAMERA...");
+  try{await navigator.mediaDevices.getUserMedia({video:true});}
+  catch(e){loading.style.display="none";document.getElementById("cam-err").style.display="flex";return;}
+  sl(45,"LOADING MEDIAPIPE...");
+  const hands=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+  hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.78,minTrackingConfidence:0.72});
+  hands.onResults(onResults);
+  sl(75,"STARTING CAMERA...");
+  const camera=new Camera(video,{onFrame:async()=>{resize();await hands.send({image:video});},width:1280,height:720});
+  await camera.start();
+  sl(100,"READY");
+  await new Promise(r=>setTimeout(r,300));
+  loading.style.opacity="0";
+  setTimeout(()=>{loading.style.display="none";},450);
+  resize();
+  toast("Hold a sign ~1s to type it");
+})();
+</script>
+</body>
+</html>

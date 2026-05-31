@@ -3,434 +3,653 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HANDSPEAK — ASL Interpreter</title>
-<meta name="description" content="Dual-hand ASL interpreter entirely in the browser. No install, no dependencies — just open and start signing.">
-<meta property="og:title" content="HANDSPEAK — ASL Interpreter">
-<meta property="og:description" content="Both hands tracked. 30+ signs recognised. Zero dependencies beyond a webcam.">
-<meta property="og:type" content="website">
+<title>SIGN SPEAK — ASL Interpreter</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#080a0f;
-  --bg2:#0d0f18;
-  --surface:rgba(255,255,255,0.03);
-  --border:rgba(255,255,255,0.07);
-  --accent:#e8ff47;
-  --accent2:#ff6b35;
-  --accent3:#ff47c8;
-  --accent4:#47c8ff;
-  --text:#f0f2f8;
-  --muted:rgba(240,242,248,0.38);
+:root {
+  --bg: #0a0a0a;
+  --bg2: #111114;
+  --surface: rgba(255,255,255,0.04);
+  --border: rgba(255,255,255,0.08);
+  --accent: #e8ff47;
+  --accent2: #ff6b35;
+  --accent3: #47c8ff;
+  --accent4: #ff47c8;
+  --text: #f0f0f0;
+  --muted: rgba(240,240,240,0.35);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-html{scroll-behavior:smooth;}
-body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;overflow-x:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;height:100vh;width:100vw;overflow:hidden;}
+#app{display:grid;grid-template-columns:1fr 400px;height:100vh;}
 
-/* ── NAV ── */
-nav{
-  position:fixed;top:0;left:0;right:0;z-index:100;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:0 40px;height:58px;
-  background:rgba(8,10,15,0.82);backdrop-filter:blur(18px);
-  border-bottom:1px solid var(--border);
-}
-.nav-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.2em;color:#fff;}
-.nav-logo span{color:var(--accent);}
-.nav-links{display:flex;gap:28px;align-items:center;}
-.nav-links a{font-size:9px;letter-spacing:0.22em;color:var(--muted);text-decoration:none;text-transform:uppercase;transition:color 0.2s;}
-.nav-links a:hover{color:var(--text);}
-.nav-cta{
-  padding:7px 18px;border-radius:6px;
-  background:var(--accent);color:#080a0f;
-  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.18em;
-  text-decoration:none;font-weight:500;text-transform:uppercase;
-  transition:all 0.2s;
-}
-.nav-cta:hover{background:#d4eb30;transform:translateY(-1px);}
+/* ── LEFT ── */
+#cam-panel{position:relative;overflow:hidden;background:#000;}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);opacity:0;}
+#overlay-canvas{position:absolute;inset:0;width:100%;height:100%;}
 
-/* ── HERO ── */
-#hero{
-  min-height:100vh;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:100px 40px 60px;
-  text-align:center;
-  position:relative;overflow:hidden;
+#letter-overlay{
+  position:absolute;bottom:0;left:0;right:0;
+  display:flex;align-items:flex-end;justify-content:space-between;
+  padding:20px 24px;pointer-events:none;
 }
-/* animated bg grid */
-#hero::before{
-  content:"";position:absolute;inset:0;
-  background-image:
-    linear-gradient(rgba(232,255,71,0.03) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(232,255,71,0.03) 1px,transparent 1px);
-  background-size:60px 60px;
-  animation:gridShift 20s linear infinite;
-  pointer-events:none;
-}
-@keyframes gridShift{from{background-position:0 0}to{background-position:60px 60px}}
-/* radial glow */
-#hero::after{
-  content:"";position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);
-  width:600px;height:600px;
-  background:radial-gradient(circle,rgba(232,255,71,0.06) 0%,transparent 65%);
-  pointer-events:none;
-}
-
-.hero-badge{
-  display:inline-flex;align-items:center;gap:7px;
-  padding:5px 14px;border-radius:20px;
-  border:1px solid rgba(232,255,71,0.2);
-  background:rgba(232,255,71,0.05);
-  font-size:9px;letter-spacing:0.2em;color:rgba(232,255,71,0.7);
-  text-transform:uppercase;margin-bottom:28px;
-  animation:fadeUp 0.6s ease both;
-}
-.badge-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);animation:bp 1.5s infinite;}
-@keyframes bp{0%,100%{opacity:1}50%{opacity:0.3}}
-
-h1{
+#current-sign{
   font-family:'Bebas Neue',sans-serif;
-  font-size:clamp(72px,12vw,140px);
-  letter-spacing:0.08em;line-height:0.9;
-  color:#fff;
-  margin-bottom:8px;
-  animation:fadeUp 0.7s ease 0.1s both;
-  position:relative;z-index:1;
+  font-size:clamp(72px,12vw,148px);
+  line-height:1;color:var(--accent);
+  text-shadow:0 0 50px rgba(232,255,71,0.35);
+  letter-spacing:0.02em;transition:opacity 0.12s;opacity:0;
 }
-h1 .hl{color:var(--accent);}
+#current-sign.show{opacity:1;}
 
-.hero-sub{
-  font-size:clamp(11px,1.6vw,15px);
-  color:var(--muted);letter-spacing:0.12em;
-  max-width:520px;line-height:1.8;
-  margin-bottom:40px;
-  animation:fadeUp 0.7s ease 0.2s both;
-  position:relative;z-index:1;
+#conf-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:5px;padding-bottom:12px;}
+#conf-label-t{font-size:8px;letter-spacing:0.25em;color:var(--muted);text-transform:uppercase;}
+#conf-bar-bg{width:80px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;}
+#conf-bar{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width 0.15s;}
+#conf-pct{font-size:10px;color:var(--accent);letter-spacing:0.1em;}
+
+/* hand indicators */
+#hand-status{
+  position:absolute;top:16px;left:16px;display:flex;gap:8px;
+}
+.hand-chip{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(10,10,10,0.72);backdrop-filter:blur(10px);
+  border:1px solid var(--border);border-radius:6px;
+  padding:5px 11px;font-size:9px;letter-spacing:0.2em;color:var(--muted);
+  transition:border-color 0.3s,color 0.3s;
+}
+.hand-chip.active-r{border-color:rgba(232,255,71,0.3);color:var(--accent);}
+.hand-chip.active-l{border-color:rgba(255,71,200,0.3);color:var(--accent4);}
+.hdot{width:6px;height:6px;border-radius:50%;background:#2a2a2a;transition:all 0.3s;}
+.hdot.on-r{background:var(--accent);box-shadow:0 0 7px var(--accent);animation:hp 1.4s infinite;}
+.hdot.on-l{background:var(--accent4);box-shadow:0 0 7px var(--accent4);animation:hp 1.4s infinite;}
+@keyframes hp{0%,100%{opacity:1}50%{opacity:0.35}}
+
+#sign-chip{
+  position:absolute;top:16px;right:16px;
+  background:rgba(10,10,10,0.72);backdrop-filter:blur(10px);
+  border:1px solid var(--border);border-radius:6px;
+  padding:5px 11px;font-size:9px;letter-spacing:0.15em;color:var(--muted);
+  transition:color 0.2s;
 }
 
-.hero-btns{
-  display:flex;gap:12px;flex-wrap:wrap;justify-content:center;
-  animation:fadeUp 0.7s ease 0.3s both;
-  position:relative;z-index:1;
-}
-.btn-primary{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:14px 32px;border-radius:8px;
-  background:var(--accent);color:#080a0f;
-  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.18em;
-  text-decoration:none;font-weight:500;text-transform:uppercase;
-  transition:all 0.2s;box-shadow:0 0 30px rgba(232,255,71,0.2);
-}
-.btn-primary:hover{background:#d4eb30;transform:translateY(-2px);box-shadow:0 0 40px rgba(232,255,71,0.35);}
-.btn-secondary{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:14px 28px;border-radius:8px;
-  border:1px solid var(--border);background:var(--surface);
-  color:var(--text);
-  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.18em;
-  text-decoration:none;text-transform:uppercase;
-  transition:all 0.2s;
-}
-.btn-secondary:hover{border-color:rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);}
-.btn-lite{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:14px 28px;border-radius:8px;
-  border:1px solid rgba(255,71,200,0.2);background:rgba(255,71,200,0.05);
-  color:var(--accent3);
-  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.18em;
-  text-decoration:none;text-transform:uppercase;
-  transition:all 0.2s;
-}
-.btn-lite:hover{border-color:rgba(255,71,200,0.4);background:rgba(255,71,200,0.1);}
+/* hold ring */
+#hold-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;display:none;}
+#hold-wrap svg{transform:rotate(-90deg);}
+#hold-arc{fill:none;stroke:var(--accent);stroke-width:3;stroke-dasharray:220;stroke-dashoffset:220;transition:stroke-dashoffset 0.05s linear;stroke-linecap:round;}
 
-/* stats strip */
-.stats{
-  display:flex;gap:0;margin-top:64px;
-  border:1px solid var(--border);border-radius:12px;
-  overflow:hidden;
-  animation:fadeUp 0.7s ease 0.4s both;
-  position:relative;z-index:1;
+/* loading / error */
+#loading{position:absolute;inset:0;background:var(--bg);z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity 0.5s;}
+.ld-title{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:0.2em;color:var(--accent);}
+.ld-sub{font-size:9px;letter-spacing:0.3em;color:var(--muted);text-transform:uppercase;}
+.ld-bar{width:150px;height:2px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;}
+.ld-fill{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width 0.35s;}
+#ld-msg{font-size:8px;letter-spacing:0.2em;color:var(--muted);}
+#cam-error{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);text-align:center;padding:40px;}
+.ce-icon{font-size:38px;}.ce-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.1em;}
+.ce-msg{font-size:10px;color:var(--muted);line-height:1.9;max-width:300px;}
+#cam-retry{padding:8px 20px;border:1px solid rgba(232,255,71,0.3);border-radius:6px;background:rgba(232,255,71,0.07);color:var(--accent);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;cursor:pointer;text-transform:uppercase;margin-top:4px;}
+
+/* ── RIGHT ── */
+#text-panel{display:flex;flex-direction:column;background:var(--bg2);border-left:1px solid var(--border);overflow:hidden;}
+.tp-head{padding:20px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.tp-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.2em;color:#fff;}
+.tp-sub{font-size:8px;letter-spacing:0.3em;color:var(--muted);text-transform:uppercase;margin-top:2px;}
+
+/* two-hand badge */
+.dual-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  margin-top:8px;padding:4px 9px;border-radius:5px;
+  background:rgba(232,255,71,0.06);border:1px solid rgba(232,255,71,0.15);
+  font-size:8px;letter-spacing:0.15em;color:rgba(232,255,71,0.7);
 }
-.stat{
-  flex:1;padding:20px 28px;text-align:center;
-  border-right:1px solid var(--border);
-}
-.stat:last-child{border-right:none;}
-.stat-num{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:0.1em;color:var(--accent);}
-.stat-label{font-size:8px;letter-spacing:0.22em;color:var(--muted);text-transform:uppercase;margin-top:3px;}
 
-@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+#out-scroll{flex:1;min-height:0;padding:20px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;}
+#out-scroll::-webkit-scrollbar{width:3px;}
+#out-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);border-radius:2px;}
 
-/* ── SECTIONS ── */
-section{padding:80px 40px;max-width:1100px;margin:0 auto;}
+#live-text{font-family:'Bebas Neue',sans-serif;font-size:48px;line-height:1.1;letter-spacing:0.04em;color:var(--accent);min-height:60px;word-break:break-all;}
+.cursor{display:inline-block;width:4px;height:44px;background:var(--accent);margin-left:3px;vertical-align:bottom;animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
-.sec-label{font-size:9px;letter-spacing:0.3em;color:var(--accent);text-transform:uppercase;margin-bottom:12px;}
-.sec-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,6vw,62px);letter-spacing:0.08em;color:#fff;line-height:1;margin-bottom:16px;}
-.sec-desc{font-size:11px;color:var(--muted);line-height:1.9;max-width:560px;letter-spacing:0.06em;}
+#history{display:flex;flex-direction:column;gap:7px;}
+.hist-item{padding:9px 13px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text);letter-spacing:0.04em;line-height:1.5;animation:si 0.3s ease;}
+@keyframes si{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.hist-time{font-size:7px;color:var(--muted);letter-spacing:0.2em;margin-bottom:3px;}
 
-/* feature grid */
-.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:40px;}
-.feat-card{
-  padding:24px;border-radius:12px;
-  background:var(--surface);border:1px solid var(--border);
-  transition:border-color 0.25s,transform 0.2s;
-}
-.feat-card:hover{border-color:rgba(232,255,71,0.2);transform:translateY(-3px);}
-.feat-icon{font-size:28px;margin-bottom:12px;}
-.feat-title{font-size:13px;font-weight:500;color:#fff;margin-bottom:6px;letter-spacing:0.06em;}
-.feat-desc{font-size:9px;color:var(--muted);line-height:1.8;letter-spacing:0.04em;}
+/* controls */
+.tp-ctrl{flex-shrink:0;padding:14px 20px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:9px;}
+.ctrl-row{display:flex;gap:7px;}
+.cbtn{flex:1;padding:8px 5px;border-radius:7px;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.14em;cursor:pointer;transition:all 0.2s;text-transform:uppercase;border:1px solid;}
+#b-space{background:rgba(232,255,71,0.06);border-color:rgba(232,255,71,0.18);color:var(--accent);}
+#b-space:hover{background:rgba(232,255,71,0.13);}
+#b-bs{background:rgba(255,255,255,0.03);border-color:var(--border);color:var(--muted);}
+#b-bs:hover{color:var(--text);}
+#b-save{background:rgba(71,200,255,0.06);border-color:rgba(71,200,255,0.18);color:var(--accent3);}
+#b-save:hover{background:rgba(71,200,255,0.13);}
+#b-clr{background:rgba(255,107,53,0.06);border-color:rgba(255,107,53,0.18);color:var(--accent2);}
+#b-clr:hover{background:rgba(255,107,53,0.13);}
 
-/* signs section */
-#signs{background:var(--bg2);padding:80px 0;}
-#signs .inner{max-width:1100px;margin:0 auto;padding:0 40px;}
+/* ref */
+.ref-head{font-size:8px;letter-spacing:0.22em;color:var(--muted);text-transform:uppercase;margin-bottom:5px;}
+.ref-tabs{display:flex;gap:4px;margin-bottom:6px;}
+.ref-tab{flex:1;padding:5px;border-radius:5px;font-family:'DM Mono',monospace;font-size:7px;letter-spacing:0.1em;cursor:pointer;border:1px solid var(--border);background:rgba(255,255,255,0.02);color:var(--muted);text-align:center;text-transform:uppercase;transition:all 0.2s;}
+.ref-tab.active{border-color:rgba(232,255,71,0.35);background:rgba(232,255,71,0.07);color:var(--accent);}
+.ref-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;}
+.ref-grid.hidden{display:none;}
+.ri{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:5px;padding:4px 2px;text-align:center;}
+.ri.dual{border-color:rgba(255,71,200,0.2);background:rgba(255,71,200,0.04);}
+.rl{font-family:'Bebas Neue',sans-serif;font-size:14px;color:#fff;line-height:1;}
+.rd{font-size:5.5px;color:var(--muted);margin-top:1px;line-height:1.3;}
 
-.tabs{display:flex;gap:8px;margin:24px 0 20px;}
-.tab{
-  padding:8px 18px;border-radius:7px;
-  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;
-  cursor:pointer;border:1px solid var(--border);
-  background:rgba(255,255,255,0.02);color:var(--muted);
-  text-transform:uppercase;transition:all 0.2s;
-}
-.tab.active{border-color:rgba(232,255,71,0.35);background:rgba(232,255,71,0.07);color:var(--accent);}
+/* toast */
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(60px);background:rgba(10,10,10,0.92);border:1px solid var(--border);backdrop-filter:blur(12px);border-radius:7px;padding:7px 16px;font-size:9px;letter-spacing:0.2em;color:var(--accent);z-index:999;opacity:0;white-space:nowrap;pointer-events:none;transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1),opacity 0.25s;}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 
-.sign-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;}
-.sign-grid.hidden{display:none;}
-.sign-card{
-  padding:12px 8px;border-radius:9px;text-align:center;
-  background:rgba(255,255,255,0.02);border:1px solid var(--border);
-  transition:all 0.2s;cursor:default;
-}
-.sign-card:hover{border-color:rgba(232,255,71,0.25);background:rgba(232,255,71,0.04);}
-.sign-card.dual{border-color:rgba(255,71,200,0.15);background:rgba(255,71,200,0.03);}
-.sign-card.dual:hover{border-color:rgba(255,71,200,0.35);}
-.sc-letter{font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fff;line-height:1;}
-.sc-desc{font-size:7px;color:var(--muted);margin-top:4px;line-height:1.4;}
-
-/* how it works */
-.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:36px;}
-.step{padding:28px 24px;border-radius:12px;background:var(--surface);border:1px solid var(--border);position:relative;}
-.step-num{font-family:'Bebas Neue',sans-serif;font-size:52px;color:rgba(232,255,71,0.1);position:absolute;top:12px;right:16px;line-height:1;}
-.step-icon{font-size:24px;margin-bottom:12px;}
-.step-title{font-size:12px;font-weight:500;color:#fff;margin-bottom:6px;letter-spacing:0.06em;}
-.step-desc{font-size:9px;color:var(--muted);line-height:1.8;}
-
-/* version cards */
-.version-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:36px;}
-.ver-card{
-  padding:28px;border-radius:14px;border:1px solid var(--border);
-  background:var(--surface);
-  display:flex;flex-direction:column;gap:14px;
-}
-.ver-card.featured{
-  border-color:rgba(232,255,71,0.25);
-  background:rgba(232,255,71,0.04);
-}
-.ver-badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:8px;letter-spacing:0.18em;text-transform:uppercase;}
-.ver-badge.full{background:rgba(232,255,71,0.12);color:var(--accent);border:1px solid rgba(232,255,71,0.2);}
-.ver-badge.lite{background:rgba(255,71,200,0.1);color:var(--accent3);border:1px solid rgba(255,71,200,0.2);}
-.ver-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.12em;color:#fff;}
-.ver-desc{font-size:10px;color:var(--muted);line-height:1.8;}
-.ver-list{display:flex;flex-direction:column;gap:6px;}
-.ver-item{display:flex;align-items:center;gap:8px;font-size:9px;color:var(--muted);letter-spacing:0.06em;}
-.ver-dot{width:4px;height:4px;border-radius:50%;background:var(--accent);flex-shrink:0;}
-.ver-dot.pink{background:var(--accent3);}
-
-/* footer */
-footer{
-  border-top:1px solid var(--border);
-  padding:32px 40px;
-  display:flex;align-items:center;justify-content:space-between;
-  flex-wrap:wrap;gap:12px;
-}
-.foot-logo{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:0.2em;color:rgba(255,255,255,0.4);}
-.foot-links{display:flex;gap:20px;}
-.foot-links a{font-size:8px;letter-spacing:0.2em;color:var(--muted);text-decoration:none;text-transform:uppercase;transition:color 0.2s;}
-.foot-links a:hover{color:var(--text);}
-.foot-copy{font-size:8px;letter-spacing:0.15em;color:var(--muted);}
-
-/* responsive */
-@media(max-width:640px){
-  nav{padding:0 20px;}
-  #hero{padding:90px 20px 50px;}
-  h1{font-size:64px;}
-  .stats{flex-direction:column;}
-  .stat{border-right:none;border-bottom:1px solid var(--border);}
-  .stat:last-child{border-bottom:none;}
-  section{padding:60px 20px;}
-  .version-grid{grid-template-columns:1fr;}
-  footer{padding:24px 20px;flex-direction:column;align-items:flex-start;}
-  .nav-links{display:none;}
-}
+@media(max-width:680px){#app{grid-template-columns:1fr;grid-template-rows:52vh 1fr;}#current-sign{font-size:72px;}}
 </style>
 </head>
 <body>
+<div id="app">
 
-<!-- NAV -->
-<nav>
-  <div class="nav-logo">HAND<span>SPEAK</span></div>
-  <div class="nav-links">
-    <a href="#features">Features</a>
-    <a href="#signs">Signs</a>
-    <a href="#how">How It Works</a>
-    <a href="#versions">Versions</a>
-    <a href="https://github.com/ayuuXploits/handspeak" target="_blank">GitHub</a>
-  </div>
-  <a href="handspeak.html" class="nav-cta">🤲 Launch App</a>
-</nav>
+  <!-- CAMERA -->
+  <div id="cam-panel">
+    <div id="loading">
+      <div class="ld-title">SIGN SPEAK</div>
+      <div class="ld-sub">Dual-Hand ASL Interpreter</div>
+      <div class="ld-bar"><div class="ld-fill" id="ld-fill"></div></div>
+      <div id="ld-msg">LOADING...</div>
+    </div>
+    <div id="cam-error">
+      <div class="ce-icon">📷</div>
+      <div class="ce-title">CAMERA REQUIRED</div>
+      <div class="ce-msg">Sign Speak needs your webcam to see both hands.<br><br>Allow camera access and reload.</div>
+      <button id="cam-retry" onclick="location.reload()">↺ RETRY</button>
+    </div>
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="overlay-canvas"></canvas>
 
-<!-- HERO -->
-<div id="hero">
-  <div class="hero-badge"><div class="badge-dot"></div>Dual-Hand ASL Interpreter — v2.0</div>
-  <h1>HAND<br><span class="hl">SPEAK</span></h1>
-  <p class="hero-sub">Sign language interpreter that runs entirely in your browser. Both hands tracked, 30+ signs recognised, zero dependencies beyond a webcam.</p>
-  <div class="hero-btns">
-    <a href="handspeak.html" class="btn-primary">🤲 Launch Full App</a>
-    <a href="handspeak-lite.html" class="btn-lite">⚡ Try Lite Version</a>
-    <a href="https://github.com/ayuuXploits/handspeak" target="_blank" class="btn-secondary">★ GitHub</a>
+    <div id="hand-status">
+      <div class="hand-chip" id="chip-r"><div class="hdot" id="dot-r"></div>RIGHT</div>
+      <div class="hand-chip" id="chip-l"><div class="hdot" id="dot-l"></div>LEFT</div>
+    </div>
+    <div id="sign-chip">Show your hands</div>
+
+    <div id="letter-overlay">
+      <div id="current-sign"></div>
+      <div id="conf-wrap">
+        <div id="conf-label-t">CONFIDENCE</div>
+        <div id="conf-bar-bg"><div id="conf-bar"></div></div>
+        <div id="conf-pct">0%</div>
+      </div>
+    </div>
+    <div id="hold-wrap">
+      <svg width="76" height="76" viewBox="0 0 76 76">
+        <circle cx="38" cy="38" r="33" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3"/>
+        <circle id="hold-arc" cx="38" cy="38" r="33"/>
+      </svg>
+    </div>
   </div>
-  <div class="stats">
-    <div class="stat"><div class="stat-num">2</div><div class="stat-label">Hands Tracked</div></div>
-    <div class="stat"><div class="stat-num">30+</div><div class="stat-label">Signs Recognised</div></div>
-    <div class="stat"><div class="stat-num">0</div><div class="stat-label">Dependencies</div></div>
-    <div class="stat"><div class="stat-num">1</div><div class="stat-label">HTML File</div></div>
+
+  <!-- TEXT PANEL -->
+  <div id="text-panel">
+    <div class="tp-head">
+      <div class="tp-title">SIGN SPEAK</div>
+      <div class="tp-sub">ASL → Text · Dual Hand</div>
+      <div class="dual-badge">🤲 Tracks both hands simultaneously</div>
+    </div>
+
+    <div id="out-scroll">
+      <div id="live-text"><span id="live-chars"></span><span class="cursor"></span></div>
+      <div id="history"></div>
+    </div>
+
+    <div class="tp-ctrl">
+      <div class="ctrl-row">
+        <button class="cbtn" id="b-space" onclick="addSpace()">␣ SPACE</button>
+        <button class="cbtn" id="b-bs"    onclick="doBackspace()">⌫ DEL</button>
+      </div>
+      <div class="ctrl-row">
+        <button class="cbtn" id="b-save"  onclick="saveSentence()">↵ SAVE</button>
+        <button class="cbtn" id="b-clr"   onclick="clearAll()">✕ CLEAR</button>
+      </div>
+
+      <div>
+        <div class="ref-head">Reference — hold ~1s to commit</div>
+        <div class="ref-tabs">
+          <div class="ref-tab active" id="tab-single" onclick="switchTab('single')">One Hand</div>
+          <div class="ref-tab"        id="tab-dual"   onclick="switchTab('dual')">Two Hands</div>
+        </div>
+        <div class="ref-grid" id="grid-single"></div>
+        <div class="ref-grid hidden" id="grid-dual"></div>
+      </div>
+    </div>
   </div>
 </div>
+<div id="toast"></div>
 
-<!-- FEATURES -->
-<section id="features">
-  <div class="sec-label">What it does</div>
-  <div class="sec-title">BUILT FOR<br>REAL SIGNING</div>
-  <div class="sec-desc">Most browser ASL tools track one hand. Sign language uses both. HANDSPEAK tracks them simultaneously and combines their positions to recognise two-hand signs you actually use.</div>
-  <div class="feat-grid">
-    <div class="feat-card">
-      <div class="feat-icon">🤲</div>
-      <div class="feat-title">Dual Hand Tracking</div>
-      <div class="feat-desc">Both hands tracked simultaneously via MediaPipe. Each gets its own colour-coded skeleton overlay — yellow right, pink left.</div>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon">🔤</div>
-      <div class="feat-title">Full ASL Alphabet</div>
-      <div class="feat-desc">Rule-based classifier covers A–Z static letters using finger curl ratios, spread angles, and pinch geometry.</div>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon">🗣️</div>
-      <div class="feat-title">Two-Hand Signs</div>
-      <div class="feat-desc">Dedicated two-hand ruleset for common words: MORE, PLEASE, THANK YOU, HELP, SORRY, FRIEND, WHAT, WHY and more.</div>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon">⏳</div>
-      <div class="feat-title">Hold-to-Commit</div>
-      <div class="feat-desc">Hold a sign steady for ~0.7 seconds — a gold arc fills as confirmation. Prevents accidental letter entry from passing gestures.</div>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon">📝</div>
-      <div class="feat-title">Sentence Builder</div>
-      <div class="feat-desc">Signs accumulate into a live sentence. Save to history with timestamps, add spaces, backspace, or clear — all without touching a keyboard.</div>
-    </div>
-    <div class="feat-card">
-      <div class="feat-icon">⚡</div>
-      <div class="feat-title">Zero Setup</div>
-      <div class="feat-desc">Single HTML file. No npm, no build step, no backend. All dependencies load from CDN. Open the file and start signing.</div>
-    </div>
-  </div>
-</section>
-
-<!-- SIGNS -->
-<div id="signs">
-  <div class="inner">
-    <div class="sec-label">Reference</div>
-    <div class="sec-title">SIGNS YOU<br>CAN USE</div>
-    <div class="tabs">
-      <div class="tab active" id="tab-1" onclick="switchTab(1)">One-Hand Letters</div>
-      <div class="tab"        id="tab-2" onclick="switchTab(2)">Two-Hand Words</div>
-    </div>
-    <div class="sign-grid" id="sg1"></div>
-    <div class="sign-grid hidden" id="sg2"></div>
-  </div>
-</div>
-
-<!-- HOW IT WORKS -->
-<section id="how">
-  <div class="sec-label">Under the hood</div>
-  <div class="sec-title">HOW IT<br>WORKS</div>
-  <div class="sec-desc">No ML model file to download. Everything runs in pure JavaScript using geometric rules computed from hand landmarks in real time.</div>
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">01</div>
-      <div class="step-icon">📷</div>
-      <div class="step-title">Webcam Input</div>
-      <div class="step-desc">MediaPipe Camera Utils captures frames from your webcam at up to 30fps and pipes them into the hand detection model.</div>
-    </div>
-    <div class="step">
-      <div class="step-num">02</div>
-      <div class="step-icon">🦴</div>
-      <div class="step-title">21 Landmarks</div>
-      <div class="step-desc">MediaPipe Hands returns 21 3D landmarks per hand — wrist, knuckles, joints, and fingertips — for both hands simultaneously.</div>
-    </div>
-    <div class="step">
-      <div class="step-num">03</div>
-      <div class="step-icon">📐</div>
-      <div class="step-title">Geometric Rules</div>
-      <div class="step-desc">Per-frame: finger curl ratios, pinch distances, spread angles, and palm direction are computed and matched against hand-crafted sign rules.</div>
-    </div>
-    <div class="step">
-      <div class="step-num">04</div>
-      <div class="step-icon">⏳</div>
-      <div class="step-title">Hold & Commit</div>
-      <div class="step-desc">A sign must be held steady for ~22 frames before it commits to the text output — filtering out accidental or mid-transition frames.</div>
-    </div>
-  </div>
-</section>
-
-<!-- VERSIONS -->
-<section id="versions">
-  <div class="sec-label">Choose your version</div>
-  <div class="sec-title">FULL OR<br>LITE</div>
-  <div class="version-grid">
-    <div class="ver-card featured">
-      <div><div class="ver-badge full">Full Version</div></div>
-      <div class="ver-title">HANDSPEAK</div>
-      <div class="ver-desc">Split-panel layout with camera on the left, full sentence builder and history on the right. Best for desktop use.</div>
-      <div class="ver-list">
-        <div class="ver-item"><div class="ver-dot"></div>Full sentence builder with save history</div>
-        <div class="ver-item"><div class="ver-dot"></div>Two-tab sign reference panel</div>
-        <div class="ver-item"><div class="ver-dot"></div>Confidence bar + hold arc indicator</div>
-        <div class="ver-item"><div class="ver-dot"></div>Space, backspace, save, clear controls</div>
-        <div class="ver-item"><div class="ver-dot"></div>Dual hand chip indicators</div>
-      </div>
-      <a href="handspeak.html" class="btn-primary" style="text-align:center;">Launch Full App →</a>
-    </div>
-    <div class="ver-card">
-      <div><div class="ver-badge lite">Lite Version</div></div>
-      <div class="ver-title">HANDSPEAK LITE</div>
-      <div class="ver-desc">Camera fills the entire screen, sign overlaid in giant text. Minimal UI — just sign and watch the text appear at the bottom.</div>
-      <div class="ver-list">
-        <div class="ver-item"><div class="ver-dot pink"></div>Full-screen camera immersive view</div>
-        <div class="ver-item"><div class="ver-dot pink"></div>Giant sign overlay on camera</div>
-        <div class="ver-item"><div class="ver-dot pink"></div>Slim output bar at the bottom</div>
-        <div class="ver-item"><div class="ver-dot pink"></div>Same dual-hand classifier</div>
-        <div class="ver-item"><div class="ver-dot pink"></div>Half the file size</div>
-      </div>
-      <a href="handspeak-lite.html" class="btn-lite" style="text-align:center;">Launch Lite →</a>
-    </div>
-  </div>
-</section>
-
-<!-- FOOTER -->
-<footer>
-  <div class="foot-logo">HANDSPEAK</div>
-  <div class="foot-links">
-    <a href="handspeak.html">Full App</a>
-    <a href="handspeak-lite.html">Lite</a>
-    <a href="https://github.com/ayuuXploits/handspeak" target="_blank">GitHub</a>
-    <a href="https://github.com/ayuuXploits/handspeak/issues" target="_blank">Report Bug</a>
-  </div>
-  <div class="foot-copy">© 2026 ayuuXploits — All Rights Reserved</div>
-</footer>
-
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script>
-// Sign reference data
-const SINGLE=[
+// ════════════════════════════════════════════════════
+//  ELEMENTS
+// ════════════════════════════════════════════════════
+const video      = document.getElementById("webcam");
+const canvas     = document.getElementById("overlay-canvas");
+const ctx        = canvas.getContext("2d");
+const ldFill     = document.getElementById("ld-fill");
+const ldMsg      = document.getElementById("ld-msg");
+const loading    = document.getElementById("loading");
+const camError   = document.getElementById("cam-error");
+const currentSign = document.getElementById("current-sign");
+const confBar    = document.getElementById("conf-bar");
+const confPct    = document.getElementById("conf-pct");
+const liveChars  = document.getElementById("live-chars");
+const dotR       = document.getElementById("dot-r");
+const dotL       = document.getElementById("dot-l");
+const chipR      = document.getElementById("chip-r");
+const chipL      = document.getElementById("chip-l");
+const signChip   = document.getElementById("sign-chip");
+const holdWrap   = document.getElementById("hold-wrap");
+const holdArc    = document.getElementById("hold-arc");
+
+// ════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════
+let sentence       = "";
+let lastSign       = null;
+let holdFrames     = 0;
+let committed      = false;
+let smoothConf     = 0;
+const HOLD_NEEDED  = 22;
+const CIRC         = 2 * Math.PI * 33;
+
+// ════════════════════════════════════════════════════
+//  GEOMETRY HELPERS
+// ════════════════════════════════════════════════════
+const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y, (a.z||0)-(b.z||0));
+
+function fingerUp(lm, tip, pip) { return lm[tip].y < lm[pip].y; }
+
+function thumbOut(lm) {
+  return dist(lm[4], lm[5]) > dist(lm[3], lm[5]) * 1.1;
+}
+
+function fingerCurl(lm, tip, pip, mcp) {
+  return 1 - Math.min(1, dist(lm[tip],lm[mcp]) / (dist(lm[pip],lm[mcp]) * 1.8 + 0.001));
+}
+
+function getStates(lm) {
+  return {
+    thumb:  thumbOut(lm),
+    index:  fingerUp(lm, 8, 6),
+    middle: fingerUp(lm, 12, 10),
+    ring:   fingerUp(lm, 16, 14),
+    pinky:  fingerUp(lm, 20, 18),
+    iCurl:  fingerCurl(lm, 8, 6, 5),
+    mCurl:  fingerCurl(lm, 12, 10, 9),
+    rCurl:  fingerCurl(lm, 16, 14, 13),
+    pCurl:  fingerCurl(lm, 20, 18, 17),
+    tCurl:  fingerCurl(lm, 4, 2, 1),
+    pd8:    0, pd12:0, pd16:0, pd20:0, // pinch dists filled below
+    palmW:  dist(lm[5], lm[17]),
+  };
+}
+
+function fillPinch(s, lm) {
+  s.pd8  = dist(lm[4], lm[8]);
+  s.pd12 = dist(lm[4], lm[12]);
+  s.pd16 = dist(lm[4], lm[16]);
+  s.pd20 = dist(lm[4], lm[20]);
+}
+
+function allCurled(lm) {
+  const s = getStates(lm);
+  return !s.index && !s.middle && !s.ring && !s.pinky;
+}
+
+function palmFacing(lm) {
+  const ax=lm[5].x-lm[0].x, ay=lm[5].y-lm[0].y;
+  const bx=lm[17].x-lm[0].x, by=lm[17].y-lm[0].y;
+  return ax*by - ay*bx;
+}
+
+function spread(lm, i1, i2) {
+  return dist(lm[i1], lm[i2]) > dist(lm[i1-3], lm[i2-3]) * 0.65;
+}
+
+// ════════════════════════════════════════════════════
+//  SINGLE-HAND CLASSIFIER
+// ════════════════════════════════════════════════════
+function classifyOne(lm) {
+  const s = getStates(lm);
+  fillPinch(s, lm);
+  const fist = allCurled(lm);
+  const pf   = palmFacing(lm);
+
+  // ILY: thumb + index + pinky
+  if (s.thumb && s.index && !s.middle && !s.ring && s.pinky)
+    return { sign:"ILY ❤", conf:0.92 };
+
+  // Y: thumb + pinky
+  if (s.thumb && !s.index && !s.middle && !s.ring && s.pinky && s.tCurl < 0.4)
+    return { sign:"Y", conf:0.88 };
+
+  // L: thumb + index only
+  if (s.thumb && s.index && !s.middle && !s.ring && !s.pinky && thumbOut(lm))
+    return { sign:"L", conf:0.87 };
+
+  // I: pinky only
+  if (!s.thumb && !s.index && !s.middle && !s.ring && s.pinky)
+    return { sign:"I", conf:0.88 };
+
+  // D: index up, thumb touching middle+ring
+  if (s.index && !s.middle && !s.ring && !s.pinky && !s.thumb) {
+    if (s.pd12 < s.palmW*0.55 && s.pd16 < s.palmW*0.55)
+      return { sign:"D", conf:0.82 };
+    return { sign:"G", conf:0.75 };
+  }
+
+  // K: index+middle+thumb
+  if (s.index && s.middle && !s.ring && !s.pinky && s.thumb)
+    return { sign:"K", conf:0.78 };
+
+  // V vs U vs R: index + middle
+  if (s.index && s.middle && !s.ring && !s.pinky && !s.thumb) {
+    if (spread(lm,8,12))   return { sign:"V", conf:0.86 };
+    if (dist(lm[8],lm[12]) < s.palmW*0.4) return { sign:"U", conf:0.84 };
+    return { sign:"R", conf:0.72 };
+  }
+
+  // W: index+middle+ring spread
+  if (s.index && s.middle && s.ring && !s.pinky && !s.thumb)
+    return { sign:"W", conf:0.85 };
+
+  // HELLO / B: all 4 fingers up
+  if (s.index && s.middle && s.ring && s.pinky) {
+    if (s.thumb && pf > 0) return { sign:"HELLO", conf:0.84 };
+    if (!s.thumb)           return { sign:"B", conf:0.83 };
+    return { sign:"HELLO", conf:0.80 };
+  }
+
+  // F: index+thumb pinch, 3 up
+  if (!s.index && s.middle && s.ring && s.pinky && s.pd8 < s.palmW*0.35)
+    return { sign:"F", conf:0.82 };
+
+  // O: all curved, closed
+  if (!s.index && !s.middle && !s.ring && !s.pinky && !s.thumb) {
+    if (s.pd8 < s.palmW*0.5 && s.iCurl > 0.4 && s.mCurl > 0.4)
+      return { sign:"O", conf:0.80 };
+  }
+
+  // C: curved open
+  if (s.iCurl > 0.3 && s.iCurl < 0.75 && s.mCurl > 0.3 && s.mCurl < 0.75 && s.pd8 > s.palmW*0.4)
+    return { sign:"C", conf:0.75 };
+
+  // Fist variants
+  if (fist) {
+    const thumbBetween = lm[4].x > Math.min(lm[5].x,lm[9].x) && lm[4].x < Math.max(lm[5].x,lm[9].x);
+    if (thumbBetween && s.tCurl < 0.5) return { sign:"T", conf:0.80 };
+    if (s.thumb && !thumbOut(lm) && lm[4].y > lm[6].y) return { sign:"S", conf:0.78 };
+    if (thumbOut(lm))  return { sign:"A", conf:0.82 };
+    if (lm[8].y > lm[4].y && lm[12].y > lm[4].y && lm[16].y > lm[4].y)
+      return { sign:"M", conf:0.72 };
+    return { sign:"E", conf:0.68 };
+  }
+
+  // N
+  if (!s.index && !s.middle && !s.ring && !s.pinky && s.thumb &&
+      lm[8].y > lm[4].y && lm[12].y > lm[4].y)
+    return { sign:"N", conf:0.72 };
+
+  // X: index hooked
+  if (s.iCurl > 0.35 && s.iCurl < 0.7 && !s.middle && !s.ring && !s.pinky && !s.thumb)
+    return { sign:"X", conf:0.70 };
+
+  // P: index+middle pointing down
+  if (!s.index && !s.middle && s.ring && s.pinky)
+    return { sign:"P", conf:0.70 };
+
+  return null;
+}
+
+// ════════════════════════════════════════════════════
+//  TWO-HAND CLASSIFIER
+//  Called when both hands are present.
+//  dominant = more active hand (right), support = left.
+//  Returns a sign or falls back to single-hand on dominant.
+// ════════════════════════════════════════════════════
+function classifyTwo(domLm, suppLm) {
+  const ds = getStates(domLm);
+  const ss = getStates(suppLm);
+  fillPinch(ds, domLm);
+  fillPinch(ss, suppLm);
+
+  const domFist  = allCurled(domLm);
+  const suppFist = allCurled(suppLm);
+
+  // ── PLEASE: flat dominant hand rubbing chest (both open palms)
+  if (ds.index && ds.middle && ds.ring && ds.pinky &&
+      ss.index && ss.middle && ss.ring && ss.pinky)
+    return { sign:"PLEASE", conf:0.80 };
+
+  // ── THANK YOU: dominant flat hand forward from chin
+  if (ds.index && ds.middle && ds.ring && ds.pinky && suppFist)
+    return { sign:"THANK YOU", conf:0.78 };
+
+  // ── MORE: both hands pinch toward center
+  if (ds.pd8 < ds.palmW*0.4 && ss.pd8 < ss.palmW*0.4 &&
+      !ds.middle && !ds.ring && !ds.pinky &&
+      !ss.middle && !ss.ring && !ss.pinky)
+    return { sign:"MORE", conf:0.82 };
+
+  // ── HELP: dominant fist on flat support palm
+  if (domFist && ss.index && ss.middle && ss.ring && ss.pinky)
+    return { sign:"HELP", conf:0.80 };
+
+  // ── YES (nodding fist) — dominant fist, support open
+  if (domFist && !suppFist &&
+      ss.index && ss.middle && ss.ring && ss.pinky)
+    return { sign:"YES", conf:0.74 };
+
+  // ── NO: dominant index+middle snap together, support open
+  if (ds.index && ds.middle && !ds.ring && !ds.pinky && !ds.thumb &&
+      ss.index && ss.middle && ss.ring && ss.pinky)
+    return { sign:"NO", conf:0.76 };
+
+  // ── FRIEND: both hands index fingers hook together
+  if (ds.index && !ds.middle && !ds.ring && !ds.pinky &&
+      ss.index && !ss.middle && !ss.ring && !ss.pinky)
+    return { sign:"FRIEND", conf:0.78 };
+
+  // ── SORRY: dominant fist circular on chest, support neutral
+  if (domFist && !ss.index && !ss.middle && !ss.ring && !ss.pinky)
+    return { sign:"SORRY", conf:0.72 };
+
+  // ── WHAT: both hands open, palms up, fingers spread
+  if (ds.thumb && ds.index && ds.middle && ds.ring && ds.pinky &&
+      ss.thumb && ss.index && ss.middle && ss.ring && ss.pinky &&
+      palmFacing(domLm) < 0 && palmFacing(suppLm) < 0)
+    return { sign:"WHAT?", conf:0.75 };
+
+  // ── WHERE: dominant index pointing, support palm up
+  if (ds.index && !ds.middle && !ds.ring && !ds.pinky &&
+      ss.index && ss.middle && ss.ring && ss.pinky)
+    return { sign:"WHERE?", conf:0.73 };
+
+  // ── WHY: dominant Y shape, support open
+  if (ds.thumb && !ds.index && !ds.middle && !ds.ring && ds.pinky &&
+      ss.index && ss.middle && ss.ring && ss.pinky)
+    return { sign:"WHY?", conf:0.76 };
+
+  // ── Fallback: classify dominant hand alone
+  return classifyOne(domLm);
+}
+
+// ════════════════════════════════════════════════════
+//  SKELETON
+// ════════════════════════════════════════════════════
+const CONN = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],
+  [0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],
+  [5,9],[9,13],[13,17]
+];
+
+function drawSkeleton(lm, w, h, baseColor) {
+  ctx.save();
+  for (const [a,b] of CONN) {
+    ctx.beginPath();
+    ctx.moveTo(lm[a].x*w, lm[a].y*h);
+    ctx.lineTo(lm[b].x*w, lm[b].y*h);
+    ctx.strokeStyle = baseColor + "44";
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+  }
+  for (let i=0;i<lm.length;i++) {
+    ctx.beginPath();
+    ctx.arc(lm[i].x*w, lm[i].y*h, i===0?4.5:2.5, 0, Math.PI*2);
+    ctx.fillStyle = baseColor;
+    ctx.globalAlpha = 0.72;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// ════════════════════════════════════════════════════
+//  TEXT OUTPUT
+// ════════════════════════════════════════════════════
+function addChar(ch) {
+  sentence += ch;
+  liveChars.textContent = sentence;
+  const s = document.getElementById("out-scroll");
+  s.scrollTop = s.scrollHeight;
+}
+function addSpace()    { addChar(" "); showToast("SPACE"); }
+function doBackspace() {
+  if (!sentence.length) return;
+  sentence = sentence.slice(0,-1);
+  liveChars.textContent = sentence;
+}
+function saveSentence() {
+  if (!sentence.trim()) return;
+  const h = document.getElementById("history");
+  const d = document.createElement("div");
+  d.className = "hist-item";
+  const t = new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+  d.innerHTML = `<div class="hist-time">${t}</div>${sentence.trim()}`;
+  h.prepend(d);
+  sentence = "";
+  liveChars.textContent = "";
+  showToast("SAVED ✓");
+}
+function clearAll() {
+  sentence = "";
+  liveChars.textContent = "";
+  document.getElementById("history").innerHTML = "";
+  showToast("CLEARED");
+}
+
+// ════════════════════════════════════════════════════
+//  HOLD-TO-COMMIT
+// ════════════════════════════════════════════════════
+function updateHold(sign) {
+  if (sign !== lastSign) {
+    lastSign    = sign;
+    holdFrames  = 0;
+    committed   = false;
+    holdArc.style.strokeDashoffset = CIRC;
+    holdWrap.style.display = sign ? "block" : "none";
+  }
+  if (!sign) { holdWrap.style.display = "none"; return; }
+
+  holdFrames++;
+  const p = Math.min(holdFrames / HOLD_NEEDED, 1);
+  holdArc.style.strokeDashoffset = CIRC * (1 - p);
+
+  if (p >= 1 && !committed) {
+    committed = true;
+    const toAdd = (sign.length > 2 || sign.includes(" ")) ? sign + " " : sign;
+    addChar(toAdd);
+    currentSign.style.color = "var(--accent2)";
+    setTimeout(() => { currentSign.style.color = "var(--accent)"; }, 180);
+    showToast(`"${sign}" added`);
+    holdFrames = 0;
+    committed  = false;
+  }
+}
+
+// ════════════════════════════════════════════════════
+//  onResults — core loop
+// ════════════════════════════════════════════════════
+function onResults(results) {
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = "rgba(0,0,0,0.1)";
+  ctx.fillRect(0,0,w,h);
+
+  let rightLm = null, leftLm = null;
+
+  if (results.multiHandLandmarks && results.multiHandedness) {
+    results.multiHandLandmarks.forEach((raw, i) => {
+      const label   = results.multiHandedness[i].label;
+      // Mirror: MediaPipe labels are from camera's POV, mirror flips them
+      const isRight = label === "Left"; // mirrored video: Left cam = user's Right
+
+      const lm = raw.map(p => ({ x:1-p.x, y:p.y, z:p.z||0 }));
+      if (isRight) rightLm = lm; else leftLm = lm;
+
+      const color = isRight ? "#e8ff47" : "#ff47c8";
+      drawSkeleton(lm, w, h, color);
+    });
+  }
+
+  // Update hand indicators
+  const rOn = !!rightLm, lOn = !!leftLm;
+  dotR.className  = "hdot" + (rOn ? " on-r" : "");
+  dotL.className  = "hdot" + (lOn ? " on-l" : "");
+  chipR.className = "hand-chip" + (rOn ? " active-r" : "");
+  chipL.className = "hand-chip" + (lOn ? " active-l" : "");
+
+  // Classify
+  let result = null;
+  if (rightLm && leftLm) {
+    result = classifyTwo(rightLm, leftLm);
+  } else if (rightLm) {
+    result = classifyOne(rightLm);
+  } else if (leftLm) {
+    result = classifyOne(leftLm);
+  }
+
+  // Smooth confidence display
+  const targetConf = result ? result.conf : 0;
+  smoothConf += (targetConf - smoothConf) * 0.16;
+
+  if (result) {
+    currentSign.textContent = result.sign;
+    currentSign.classList.add("show");
+    confBar.style.width = (smoothConf * 100) + "%";
+    confPct.textContent  = Math.round(smoothConf * 100) + "%";
+    signChip.textContent = `Holding: ${result.sign}`;
+    signChip.style.color  = "var(--accent)";
+  } else {
+    currentSign.classList.remove("show");
+    confBar.style.width = "0%";
+    confPct.textContent  = "0%";
+    signChip.textContent = (rOn||lOn) ? "Signing..." : "Show your hands";
+    signChip.style.color  = "var(--muted)";
+  }
+
+  updateHold(result ? result.sign : null);
+}
+
+// ════════════════════════════════════════════════════
+//  REFERENCE GRID
+// ════════════════════════════════════════════════════
+const SINGLE_REF = [
   {l:"A",d:"fist, thumb side"},{l:"B",d:"4 fingers up"},{l:"C",d:"curved C"},
   {l:"D",d:"index + O base"},{l:"E",d:"all curled"},{l:"F",d:"OK + 3 up"},
   {l:"G",d:"index sideways"},{l:"H",d:"2 sideways"},{l:"I",d:"pinky only"},
@@ -438,46 +657,92 @@ const SINGLE=[
   {l:"N",d:"2 over fist"},{l:"O",d:"round O"},{l:"R",d:"2 crossed"},
   {l:"S",d:"thumb over fist"},{l:"T",d:"thumb between"},{l:"U",d:"2 up close"},
   {l:"V",d:"peace spread"},{l:"W",d:"3 spread"},{l:"X",d:"index hooked"},
-  {l:"Y",d:"thumb + pinky"},{l:"ILY ❤",d:"thumb+I+Y"},{l:"HELLO",d:"open palm"},
+  {l:"Y",d:"thumb+pinky"},{l:"ILY",d:"❤ thumb+I+Y"},
+  {l:"HELLO",d:"open palm out"},
 ];
-const DUAL=[
-  {l:"MORE",d:"both pinch"},{l:"PLEASE",d:"both palms"},
-  {l:"THANKS",d:"flat + fist"},{l:"HELP",d:"fist on palm"},
+const DUAL_REF = [
+  {l:"MORE",d:"both pinch meet"},{l:"PLEASE",d:"both open palms"},
+  {l:"THANK YOU",d:"flat + fist"},{l:"HELP",d:"fist on palm"},
   {l:"YES",d:"fist + open"},{l:"NO",d:"2-snap + open"},
-  {l:"SORRY",d:"fist circles"},{l:"FRIEND",d:"index hooks"},
+  {l:"SORRY",d:"fist circles chest"},{l:"FRIEND",d:"index hooks"},
   {l:"WHAT?",d:"both palms up"},{l:"WHERE?",d:"index + palm"},
-  {l:"WHY?",d:"Y + palm"},
+  {l:"WHY?",d:"Y shape + palm"},
 ];
 
-function buildGrid(id, items, dual){
-  const g=document.getElementById(id);
-  items.forEach(s=>{
-    const d=document.createElement("div");
-    d.className="sign-card"+(dual?" dual":"");
-    d.innerHTML=`<div class="sc-letter">${s.l}</div><div class="sc-desc">${s.d}</div>`;
-    g.appendChild(d);
+function buildGrid(id, items, dual=false) {
+  const g = document.getElementById(id);
+  items.forEach(s => {
+    const el = document.createElement("div");
+    el.className = "ri" + (dual ? " dual" : "");
+    el.innerHTML = `<div class="rl">${s.l}</div><div class="rd">${s.d}</div>`;
+    g.appendChild(el);
   });
 }
-buildGrid("sg1",SINGLE,false);
-buildGrid("sg2",DUAL,true);
+buildGrid("grid-single", SINGLE_REF, false);
+buildGrid("grid-dual",   DUAL_REF,   true);
 
-function switchTab(n){
-  document.getElementById("tab-1").className="tab"+(n===1?" active":"");
-  document.getElementById("tab-2").className="tab"+(n===2?" active":"");
-  document.getElementById("sg1").className="sign-grid"+(n===1?"":" hidden");
-  document.getElementById("sg2").className="sign-grid"+(n===2?"":" hidden");
+function switchTab(tab) {
+  document.getElementById("tab-single").className = "ref-tab" + (tab==="single"?" active":"");
+  document.getElementById("tab-dual").className   = "ref-tab" + (tab==="dual"?" active":"");
+  document.getElementById("grid-single").className = "ref-grid" + (tab==="single"?"":" hidden");
+  document.getElementById("grid-dual").className   = "ref-grid" + (tab==="dual"?"":" hidden");
 }
 
-// Intersection observer for fade-in
-const io=new IntersectionObserver(entries=>{
-  entries.forEach(e=>{if(e.isIntersecting){e.target.style.opacity="1";e.target.style.transform="none";}});
-},{threshold:0.1});
-document.querySelectorAll(".feat-card,.step,.ver-card").forEach(el=>{
-  el.style.opacity="0";
-  el.style.transform="translateY(16px)";
-  el.style.transition="opacity 0.5s ease, transform 0.5s ease";
-  io.observe(el);
-});
+// ════════════════════════════════════════════════════
+//  CANVAS RESIZE
+// ════════════════════════════════════════════════════
+function resize() {
+  const p = document.getElementById("cam-panel");
+  canvas.width  = p.clientWidth;
+  canvas.height = p.clientHeight;
+}
+window.addEventListener("resize", resize);
+
+// ════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════
+let toastT;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove("show"), 1600);
+}
+
+// ════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════
+(async () => {
+  function setLoad(p,m){ ldFill.style.width=p+"%"; ldMsg.textContent=m; }
+
+  setLoad(15,"REQUESTING CAMERA...");
+  try { await navigator.mediaDevices.getUserMedia({ video:true }); }
+  catch(e) { loading.style.display="none"; camError.style.display="flex"; return; }
+
+  setLoad(45,"LOADING MEDIAPIPE...");
+  const hands = new Hands({ locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+  hands.setOptions({
+    maxNumHands: 2,           // ← KEY CHANGE: track both hands
+    modelComplexity: 1,
+    minDetectionConfidence: 0.78,
+    minTrackingConfidence: 0.72
+  });
+  hands.onResults(onResults);
+
+  setLoad(75,"STARTING CAMERA...");
+  const camera = new Camera(video, {
+    onFrame: async () => { resize(); await hands.send({ image:video }); },
+    width:1280, height:720
+  });
+  await camera.start();
+
+  setLoad(100,"READY");
+  await new Promise(r=>setTimeout(r,320));
+  loading.style.opacity="0";
+  setTimeout(()=>{ loading.style.display="none"; },480);
+  resize();
+  showToast("Both hands tracked — hold a sign ~1s to type");
+})();
 </script>
 </body>
 </html>

@@ -26,7 +26,6 @@
 
 <br/>
 
-<img src="./docs/handspeak1.png" width="48%" /> &nbsp; <img src="./docs/handspeak2.png" width="48%" />
 
 </div>
 

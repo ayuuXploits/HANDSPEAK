@@ -1,0 +1,68 @@
+# ── OS ──
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── Editor ──
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+
+# ── Logs ──
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Node (if ever used) ──
+node_modules/
+package-lock.json
+yarn.lock
+.npm/
+
+# ── Python (if ever used for local server) ──
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+.venv
+venv/
+
+# ── Build / dist ──
+dist/
+build/
+out/
+.cache/
+
+# ── Env & secrets ──
+.env
+.env.local
+.env.*.local
+
+# ── Temp / test files ──
+*.tmp
+*.temp
+*.bak
+*.orig
+scratch/
+test/
+tests/
+
+# ── Docs images (keep originals, ignore exports) ──
+docs/*.psd
+docs/*.ai
+docs/*.fig
+

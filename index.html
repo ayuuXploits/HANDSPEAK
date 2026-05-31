@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HANDSPEAK — ASL Interpreter</title>
+<meta name="description" content="Dual-hand ASL interpreter entirely in the browser. No install, no dependencies — just open and start signing.">
+<meta property="og:title" content="HANDSPEAK — ASL Interpreter">
+<meta property="og:description" content="Both hands tracked. 30+ signs recognised. Zero dependencies beyond a webcam.">
+<meta property="og:type" content="website">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080a0f;
+  --bg2:#0d0f18;
+  --surface:rgba(255,255,255,0.03);
+  --border:rgba(255,255,255,0.07);
+  --accent:#e8ff47;
+  --accent2:#ff6b35;
+  --accent3:#ff47c8;
+  --accent4:#47c8ff;
+  --text:#f0f2f8;
+  --muted:rgba(240,242,248,0.38);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;overflow-x:hidden;}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 40px;height:58px;
+  background:rgba(8,10,15,0.82);backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--border);
+}
+.nav-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.2em;color:#fff;}
+.nav-logo span{color:var(--accent);}
+.nav-links{display:flex;gap:28px;align-items:center;}
+.nav-links a{font-size:9px;letter-spacing:0.22em;color:var(--muted);text-decoration:none;text-transform:uppercase;transition:color 0.2s;}
+.nav-links a:hover{color:var(--text);}
+.nav-cta{
+  padding:7px 18px;border-radius:6px;
+  background:var(--accent);color:#080a0f;
+  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.18em;
+  text-decoration:none;font-weight:500;text-transform:uppercase;
+  transition:all 0.2s;
+}
+.nav-cta:hover{background:#d4eb30;transform:translateY(-1px);}
+
+/* ── HERO ── */
+#hero{
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:100px 40px 60px;
+  text-align:center;
+  position:relative;overflow:hidden;
+}
+/* animated bg grid */
+#hero::before{
+  content:"";position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(232,255,71,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(232,255,71,0.03) 1px,transparent 1px);
+  background-size:60px 60px;
+  animation:gridShift 20s linear infinite;
+  pointer-events:none;
+}
+@keyframes gridShift{from{background-position:0 0}to{background-position:60px 60px}}
+/* radial glow */
+#hero::after{
+  content:"";position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);
+  width:600px;height:600px;
+  background:radial-gradient(circle,rgba(232,255,71,0.06) 0%,transparent 65%);
+  pointer-events:none;
+}
+
+.hero-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 14px;border-radius:20px;
+  border:1px solid rgba(232,255,71,0.2);
+  background:rgba(232,255,71,0.05);
+  font-size:9px;letter-spacing:0.2em;color:rgba(232,255,71,0.7);
+  text-transform:uppercase;margin-bottom:28px;
+  animation:fadeUp 0.6s ease both;
+}
+.badge-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);animation:bp 1.5s infinite;}
+@keyframes bp{0%,100%{opacity:1}50%{opacity:0.3}}
+
+h1{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(72px,12vw,140px);
+  letter-spacing:0.08em;line-height:0.9;
+  color:#fff;
+  margin-bottom:8px;
+  animation:fadeUp 0.7s ease 0.1s both;
+  position:relative;z-index:1;
+}
+h1 .hl{color:var(--accent);}
+
+.hero-sub{
+  font-size:clamp(11px,1.6vw,15px);
+  color:var(--muted);letter-spacing:0.12em;
+  max-width:520px;line-height:1.8;
+  margin-bottom:40px;
+  animation:fadeUp 0.7s ease 0.2s both;
+  position:relative;z-index:1;
+}
+
+.hero-btns{
+  display:flex;gap:12px;flex-wrap:wrap;justify-content:center;
+  animation:fadeUp 0.7s ease 0.3s both;
+  position:relative;z-index:1;
+}
+.btn-primary{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 32px;border-radius:8px;
+  background:var(--accent);color:#080a0f;
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.18em;
+  text-decoration:none;font-weight:500;text-transform:uppercase;
+  transition:all 0.2s;box-shadow:0 0 30px rgba(232,255,71,0.2);
+}
+.btn-primary:hover{background:#d4eb30;transform:translateY(-2px);box-shadow:0 0 40px rgba(232,255,71,0.35);}
+.btn-secondary{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 28px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface);
+  color:var(--text);
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.18em;
+  text-decoration:none;text-transform:uppercase;
+  transition:all 0.2s;
+}
+.btn-secondary:hover{border-color:rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);}
+.btn-lite{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 28px;border-radius:8px;
+  border:1px solid rgba(255,71,200,0.2);background:rgba(255,71,200,0.05);
+  color:var(--accent3);
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.18em;
+  text-decoration:none;text-transform:uppercase;
+  transition:all 0.2s;
+}
+.btn-lite:hover{border-color:rgba(255,71,200,0.4);background:rgba(255,71,200,0.1);}
+
+/* stats strip */
+.stats{
+  display:flex;gap:0;margin-top:64px;
+  border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;
+  animation:fadeUp 0.7s ease 0.4s both;
+  position:relative;z-index:1;
+}
+.stat{
+  flex:1;padding:20px 28px;text-align:center;
+  border-right:1px solid var(--border);
+}
+.stat:last-child{border-right:none;}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:0.1em;color:var(--accent);}
+.stat-label{font-size:8px;letter-spacing:0.22em;color:var(--muted);text-transform:uppercase;margin-top:3px;}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+
+/* ── SECTIONS ── */
+section{padding:80px 40px;max-width:1100px;margin:0 auto;}
+
+.sec-label{font-size:9px;letter-spacing:0.3em;color:var(--accent);text-transform:uppercase;margin-bottom:12px;}
+.sec-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,6vw,62px);letter-spacing:0.08em;color:#fff;line-height:1;margin-bottom:16px;}
+.sec-desc{font-size:11px;color:var(--muted);line-height:1.9;max-width:560px;letter-spacing:0.06em;}
+
+/* feature grid */
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:40px;}
+.feat-card{
+  padding:24px;border-radius:12px;
+  background:var(--surface);border:1px solid var(--border);
+  transition:border-color 0.25s,transform 0.2s;
+}
+.feat-card:hover{border-color:rgba(232,255,71,0.2);transform:translateY(-3px);}
+.feat-icon{font-size:28px;margin-bottom:12px;}
+.feat-title{font-size:13px;font-weight:500;color:#fff;margin-bottom:6px;letter-spacing:0.06em;}
+.feat-desc{font-size:9px;color:var(--muted);line-height:1.8;letter-spacing:0.04em;}
+
+/* signs section */
+#signs{background:var(--bg2);padding:80px 0;}
+#signs .inner{max-width:1100px;margin:0 auto;padding:0 40px;}
+
+.tabs{display:flex;gap:8px;margin:24px 0 20px;}
+.tab{
+  padding:8px 18px;border-radius:7px;
+  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;
+  cursor:pointer;border:1px solid var(--border);
+  background:rgba(255,255,255,0.02);color:var(--muted);
+  text-transform:uppercase;transition:all 0.2s;
+}
+.tab.active{border-color:rgba(232,255,71,0.35);background:rgba(232,255,71,0.07);color:var(--accent);}
+
+.sign-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;}
+.sign-grid.hidden{display:none;}
+.sign-card{
+  padding:12px 8px;border-radius:9px;text-align:center;
+  background:rgba(255,255,255,0.02);border:1px solid var(--border);
+  transition:all 0.2s;cursor:default;
+}
+.sign-card:hover{border-color:rgba(232,255,71,0.25);background:rgba(232,255,71,0.04);}
+.sign-card.dual{border-color:rgba(255,71,200,0.15);background:rgba(255,71,200,0.03);}
+.sign-card.dual:hover{border-color:rgba(255,71,200,0.35);}
+.sc-letter{font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fff;line-height:1;}
+.sc-desc{font-size:7px;color:var(--muted);margin-top:4px;line-height:1.4;}
+
+/* how it works */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:36px;}
+.step{padding:28px 24px;border-radius:12px;background:var(--surface);border:1px solid var(--border);position:relative;}
+.step-num{font-family:'Bebas Neue',sans-serif;font-size:52px;color:rgba(232,255,71,0.1);position:absolute;top:12px;right:16px;line-height:1;}
+.step-icon{font-size:24px;margin-bottom:12px;}
+.step-title{font-size:12px;font-weight:500;color:#fff;margin-bottom:6px;letter-spacing:0.06em;}
+.step-desc{font-size:9px;color:var(--muted);line-height:1.8;}
+
+/* version cards */
+.version-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:36px;}
+.ver-card{
+  padding:28px;border-radius:14px;border:1px solid var(--border);
+  background:var(--surface);
+  display:flex;flex-direction:column;gap:14px;
+}
+.ver-card.featured{
+  border-color:rgba(232,255,71,0.25);
+  background:rgba(232,255,71,0.04);
+}
+.ver-badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:8px;letter-spacing:0.18em;text-transform:uppercase;}
+.ver-badge.full{background:rgba(232,255,71,0.12);color:var(--accent);border:1px solid rgba(232,255,71,0.2);}
+.ver-badge.lite{background:rgba(255,71,200,0.1);color:var(--accent3);border:1px solid rgba(255,71,200,0.2);}
+.ver-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.12em;color:#fff;}
+.ver-desc{font-size:10px;color:var(--muted);line-height:1.8;}
+.ver-list{display:flex;flex-direction:column;gap:6px;}
+.ver-item{display:flex;align-items:center;gap:8px;font-size:9px;color:var(--muted);letter-spacing:0.06em;}
+.ver-dot{width:4px;height:4px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.ver-dot.pink{background:var(--accent3);}
+
+/* footer */
+footer{
+  border-top:1px solid var(--border);
+  padding:32px 40px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:12px;
+}
+.foot-logo{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:0.2em;color:rgba(255,255,255,0.4);}
+.foot-links{display:flex;gap:20px;}
+.foot-links a{font-size:8px;letter-spacing:0.2em;color:var(--muted);text-decoration:none;text-transform:uppercase;transition:color 0.2s;}
+.foot-links a:hover{color:var(--text);}
+.foot-copy{font-size:8px;letter-spacing:0.15em;color:var(--muted);}
+
+/* responsive */
+@media(max-width:640px){
+  nav{padding:0 20px;}
+  #hero{padding:90px 20px 50px;}
+  h1{font-size:64px;}
+  .stats{flex-direction:column;}
+  .stat{border-right:none;border-bottom:1px solid var(--border);}
+  .stat:last-child{border-bottom:none;}
+  section{padding:60px 20px;}
+  .version-grid{grid-template-columns:1fr;}
+  footer{padding:24px 20px;flex-direction:column;align-items:flex-start;}
+  .nav-links{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">HAND<span>SPEAK</span></div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#signs">Signs</a>
+    <a href="#how">How It Works</a>
+    <a href="#versions">Versions</a>
+    <a href="https://github.com/ayuuXploits/handspeak" target="_blank">GitHub</a>
+  </div>
+  <a href="handspeak.html" class="nav-cta">🤲 Launch App</a>
+</nav>
+
+<!-- HERO -->
+<div id="hero">
+  <div class="hero-badge"><div class="badge-dot"></div>Dual-Hand ASL Interpreter — v2.0</div>
+  <h1>HAND<br><span class="hl">SPEAK</span></h1>
+  <p class="hero-sub">Sign language interpreter that runs entirely in your browser. Both hands tracked, 30+ signs recognised, zero dependencies beyond a webcam.</p>
+  <div class="hero-btns">
+    <a href="handspeak.html" class="btn-primary">🤲 Launch Full App</a>
+    <a href="handspeak-lite.html" class="btn-lite">⚡ Try Lite Version</a>
+    <a href="https://github.com/ayuuXploits/handspeak" target="_blank" class="btn-secondary">★ GitHub</a>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-num">2</div><div class="stat-label">Hands Tracked</div></div>
+    <div class="stat"><div class="stat-num">30+</div><div class="stat-label">Signs Recognised</div></div>
+    <div class="stat"><div class="stat-num">0</div><div class="stat-label">Dependencies</div></div>
+    <div class="stat"><div class="stat-num">1</div><div class="stat-label">HTML File</div></div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="sec-label">What it does</div>
+  <div class="sec-title">BUILT FOR<br>REAL SIGNING</div>
+  <div class="sec-desc">Most browser ASL tools track one hand. Sign language uses both. HANDSPEAK tracks them simultaneously and combines their positions to recognise two-hand signs you actually use.</div>
+  <div class="feat-grid">
+    <div class="feat-card">
+      <div class="feat-icon">🤲</div>
+      <div class="feat-title">Dual Hand Tracking</div>
+      <div class="feat-desc">Both hands tracked simultaneously via MediaPipe. Each gets its own colour-coded skeleton overlay — yellow right, pink left.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🔤</div>
+      <div class="feat-title">Full ASL Alphabet</div>
+      <div class="feat-desc">Rule-based classifier covers A–Z static letters using finger curl ratios, spread angles, and pinch geometry.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🗣️</div>
+      <div class="feat-title">Two-Hand Signs</div>
+      <div class="feat-desc">Dedicated two-hand ruleset for common words: MORE, PLEASE, THANK YOU, HELP, SORRY, FRIEND, WHAT, WHY and more.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">⏳</div>
+      <div class="feat-title">Hold-to-Commit</div>
+      <div class="feat-desc">Hold a sign steady for ~0.7 seconds — a gold arc fills as confirmation. Prevents accidental letter entry from passing gestures.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📝</div>
+      <div class="feat-title">Sentence Builder</div>
+      <div class="feat-desc">Signs accumulate into a live sentence. Save to history with timestamps, add spaces, backspace, or clear — all without touching a keyboard.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">⚡</div>
+      <div class="feat-title">Zero Setup</div>
+      <div class="feat-desc">Single HTML file. No npm, no build step, no backend. All dependencies load from CDN. Open the file and start signing.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SIGNS -->
+<div id="signs">
+  <div class="inner">
+    <div class="sec-label">Reference</div>
+    <div class="sec-title">SIGNS YOU<br>CAN USE</div>
+    <div class="tabs">
+      <div class="tab active" id="tab-1" onclick="switchTab(1)">One-Hand Letters</div>
+      <div class="tab"        id="tab-2" onclick="switchTab(2)">Two-Hand Words</div>
+    </div>
+    <div class="sign-grid" id="sg1"></div>
+    <div class="sign-grid hidden" id="sg2"></div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="sec-label">Under the hood</div>
+  <div class="sec-title">HOW IT<br>WORKS</div>
+  <div class="sec-desc">No ML model file to download. Everything runs in pure JavaScript using geometric rules computed from hand landmarks in real time.</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-icon">📷</div>
+      <div class="step-title">Webcam Input</div>
+      <div class="step-desc">MediaPipe Camera Utils captures frames from your webcam at up to 30fps and pipes them into the hand detection model.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-icon">🦴</div>
+      <div class="step-title">21 Landmarks</div>
+      <div class="step-desc">MediaPipe Hands returns 21 3D landmarks per hand — wrist, knuckles, joints, and fingertips — for both hands simultaneously.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-icon">📐</div>
+      <div class="step-title">Geometric Rules</div>
+      <div class="step-desc">Per-frame: finger curl ratios, pinch distances, spread angles, and palm direction are computed and matched against hand-crafted sign rules.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-icon">⏳</div>
+      <div class="step-title">Hold & Commit</div>
+      <div class="step-desc">A sign must be held steady for ~22 frames before it commits to the text output — filtering out accidental or mid-transition frames.</div>
+    </div>
+  </div>
+</section>
+
+<!-- VERSIONS -->
+<section id="versions">
+  <div class="sec-label">Choose your version</div>
+  <div class="sec-title">FULL OR<br>LITE</div>
+  <div class="version-grid">
+    <div class="ver-card featured">
+      <div><div class="ver-badge full">Full Version</div></div>
+      <div class="ver-title">HANDSPEAK</div>
+      <div class="ver-desc">Split-panel layout with camera on the left, full sentence builder and history on the right. Best for desktop use.</div>
+      <div class="ver-list">
+        <div class="ver-item"><div class="ver-dot"></div>Full sentence builder with save history</div>
+        <div class="ver-item"><div class="ver-dot"></div>Two-tab sign reference panel</div>
+        <div class="ver-item"><div class="ver-dot"></div>Confidence bar + hold arc indicator</div>
+        <div class="ver-item"><div class="ver-dot"></div>Space, backspace, save, clear controls</div>
+        <div class="ver-item"><div class="ver-dot"></div>Dual hand chip indicators</div>
+      </div>
+      <a href="handspeak.html" class="btn-primary" style="text-align:center;">Launch Full App →</a>
+    </div>
+    <div class="ver-card">
+      <div><div class="ver-badge lite">Lite Version</div></div>
+      <div class="ver-title">HANDSPEAK LITE</div>
+      <div class="ver-desc">Camera fills the entire screen, sign overlaid in giant text. Minimal UI — just sign and watch the text appear at the bottom.</div>
+      <div class="ver-list">
+        <div class="ver-item"><div class="ver-dot pink"></div>Full-screen camera immersive view</div>
+        <div class="ver-item"><div class="ver-dot pink"></div>Giant sign overlay on camera</div>
+        <div class="ver-item"><div class="ver-dot pink"></div>Slim output bar at the bottom</div>
+        <div class="ver-item"><div class="ver-dot pink"></div>Same dual-hand classifier</div>
+        <div class="ver-item"><div class="ver-dot pink"></div>Half the file size</div>
+      </div>
+      <a href="handspeak-lite.html" class="btn-lite" style="text-align:center;">Launch Lite →</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="foot-logo">HANDSPEAK</div>
+  <div class="foot-links">
+    <a href="handspeak.html">Full App</a>
+    <a href="handspeak-lite.html">Lite</a>
+    <a href="https://github.com/ayuuXploits/handspeak" target="_blank">GitHub</a>
+    <a href="https://github.com/ayuuXploits/handspeak/issues" target="_blank">Report Bug</a>
+  </div>
+  <div class="foot-copy">© 2026 ayuuXploits — All Rights Reserved</div>
+</footer>
+
+<script>
+// Sign reference data
+const SINGLE=[
+  {l:"A",d:"fist, thumb side"},{l:"B",d:"4 fingers up"},{l:"C",d:"curved C"},
+  {l:"D",d:"index + O base"},{l:"E",d:"all curled"},{l:"F",d:"OK + 3 up"},
+  {l:"G",d:"index sideways"},{l:"H",d:"2 sideways"},{l:"I",d:"pinky only"},
+  {l:"K",d:"2up + thumb"},{l:"L",d:"L shape"},{l:"M",d:"3 over fist"},
+  {l:"N",d:"2 over fist"},{l:"O",d:"round O"},{l:"R",d:"2 crossed"},
+  {l:"S",d:"thumb over fist"},{l:"T",d:"thumb between"},{l:"U",d:"2 up close"},
+  {l:"V",d:"peace spread"},{l:"W",d:"3 spread"},{l:"X",d:"index hooked"},
+  {l:"Y",d:"thumb + pinky"},{l:"ILY ❤",d:"thumb+I+Y"},{l:"HELLO",d:"open palm"},
+];
+const DUAL=[
+  {l:"MORE",d:"both pinch"},{l:"PLEASE",d:"both palms"},
+  {l:"THANKS",d:"flat + fist"},{l:"HELP",d:"fist on palm"},
+  {l:"YES",d:"fist + open"},{l:"NO",d:"2-snap + open"},
+  {l:"SORRY",d:"fist circles"},{l:"FRIEND",d:"index hooks"},
+  {l:"WHAT?",d:"both palms up"},{l:"WHERE?",d:"index + palm"},
+  {l:"WHY?",d:"Y + palm"},
+];
+
+function buildGrid(id, items, dual){
+  const g=document.getElementById(id);
+  items.forEach(s=>{
+    const d=document.createElement("div");
+    d.className="sign-card"+(dual?" dual":"");
+    d.innerHTML=`<div class="sc-letter">${s.l}</div><div class="sc-desc">${s.d}</div>`;
+    g.appendChild(d);
+  });
+}
+buildGrid("sg1",SINGLE,false);
+buildGrid("sg2",DUAL,true);
+
+function switchTab(n){
+  document.getElementById("tab-1").className="tab"+(n===1?" active":"");
+  document.getElementById("tab-2").className="tab"+(n===2?" active":"");
+  document.getElementById("sg1").className="sign-grid"+(n===1?"":" hidden");
+  document.getElementById("sg2").className="sign-grid"+(n===2?"":" hidden");
+}
+
+// Intersection observer for fade-in
+const io=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.style.opacity="1";e.target.style.transform="none";}});
+},{threshold:0.1});
+document.querySelectorAll(".feat-card,.step,.ver-card").forEach(el=>{
+  el.style.opacity="0";
+  el.style.transform="translateY(16px)";
+  el.style.transition="opacity 0.5s ease, transform 0.5s ease";
+  io.observe(el);
+});
+</script>
+</body>
+</html>

@@ -22,7 +22,7 @@
 
 <br/>
 
-<img src="./docs/handspeak_main.png" alt="HANDSPEAK — ASL Interpreter" width="100%" />
+<img src="./docs/handspeak.png" alt="HANDSPEAK — ASL Interpreter" width="100%" />
 
 <br/>
 

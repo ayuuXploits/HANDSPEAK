@@ -107,7 +107,7 @@ The entire engine — hand tracking, geometric classifier, UI — lives in a sin
 ### Two-Hand Signs — Common Words
 
 | Sign | Both Hands |
-|---|---|
+|---|-----|
 | MORE | Both hands pinch together toward center |
 | PLEASE | Both open palms facing forward |
 | THANK YOU | Dominant flat hand forward, support fist |

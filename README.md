@@ -119,7 +119,7 @@ The entire engine — hand tracking, geometric classifier, UI — lives in a sin
 | WHAT? | Both palms up, fingers spread |
 | WHERE? | Dominant index pointing, support palm up |
 | WHY? | Dominant Y shape, support open palm |
-
+ 
 ---
 
 ## ⚙️ How It Works

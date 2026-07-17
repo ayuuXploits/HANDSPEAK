@@ -87,7 +87,7 @@ The entire engine — hand tracking, geometric classifier, UI — lives in a sin
 | F | Index + thumb touch (OK), 3 fingers up |
 | G | Index pointing sideways, thumb parallel |
 | H | Index + middle pointing sideways together |
-| I | Pinky only up |
+| I | Pinky only up | 
 | K | Index + middle up, thumb between them |
 | L | Thumb + index forming an L |
 | M | Three fingers folded over thumb |

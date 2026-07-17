@@ -183,6 +183,7 @@ http-server . -p 8080 --cors
 
 ```bash
 curl -L https://raw.githubusercontent.com/ayuuXploits/handspeak/main/handspeak.html -o handspeak.html
+
 ```
 
 ---

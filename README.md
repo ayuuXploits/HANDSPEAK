@@ -176,6 +176,7 @@ Then open: `http://localhost:8080/handspeak.html`
 ```bash
 npm install -g http-server
 http-server . -p 8080 --cors
+
 ```
 
 ---

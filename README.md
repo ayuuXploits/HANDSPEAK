@@ -200,6 +200,7 @@ handspeak/
 ├── hand-speak.html            # Full application — single file
 ├── hand-speak-lite.html       # Lite version 
 └── index.html
+
 ```
 
 ---
